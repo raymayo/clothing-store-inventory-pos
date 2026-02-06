@@ -394,11 +394,16 @@
                         <div class="mb-2 text-xs font-semibold text-slate-600">Size</div>
                         <div class="flex flex-wrap gap-2">
                             <template x-for="s in (selectedProduct?.sizes ?? ['OS'])" :key="s">
-                                <button @click="selectedSize = s"
-                                    :class="selectedSize === s ? 'bg-slate-900 text-white' :
-                                        'bg-slate-100 text-slate-800 hover:bg-slate-200'"
-                                    class="rounded-2xl px-3 py-2 text-sm font-semibold" x-text="s"></button>
+                                <button @click="pickSize(s)" :disabled="!sizeHasStock(s)"
+                                    :class="selectedSize === s ?
+                                        'bg-slate-900 text-white' :
+                                        (!sizeHasStock(s) ?
+                                            'bg-slate-50 text-slate-400 line-through cursor-not-allowed' :
+                                            'bg-slate-100 text-slate-800 hover:bg-slate-200')"
+                                    class="rounded-2xl px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                                    x-text="s"></button>
                             </template>
+
                         </div>
                     </div>
 
@@ -406,11 +411,16 @@
                         <div class="mb-2 text-xs font-semibold text-slate-600">Color</div>
                         <div class="flex flex-wrap gap-2">
                             <template x-for="c in (selectedProduct?.colors ?? ['Default'])" :key="c">
-                                <button @click="selectedColor = c"
-                                    :class="selectedColor === c ? 'bg-indigo-600 text-white' :
-                                        'bg-slate-100 text-slate-800 hover:bg-slate-200'"
-                                    class="rounded-2xl px-3 py-2 text-sm font-semibold" x-text="c"></button>
+                                <button @click="pickColor(c)" :disabled="!colorHasStock(c)"
+                                    :class="selectedColor === c ?
+                                        'bg-indigo-600 text-white' :
+                                        (!colorHasStock(c) ?
+                                            'bg-slate-50 text-slate-400 line-through cursor-not-allowed' :
+                                            'bg-slate-100 text-slate-800 hover:bg-slate-200')"
+                                    class="rounded-2xl px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                                    x-text="c"></button>
                             </template>
+
                         </div>
                     </div>
 
@@ -513,220 +523,273 @@
         </div>
 
         <!-- Alpine component -->
-        <script>
-            function pos(products, categories) {
-                return {
-                    products,
-                    categories,
-                    query: '',
-                    activeCategory: 'All',
-                    inStockOnly: true,
-                    sortBy: 'featured',
-                    grid: 4,
 
-                    cart: [],
-                    discount: 0,
-                    taxRate: 0,
+        @once
+            <script>
+                function pos(products, categories) {
+                    return {
+                        products,
+                        categories,
+                        query: '',
+                        activeCategory: 'All',
+                        inStockOnly: true,
+                        sortBy: 'featured',
+                        grid: 4,
 
-                    customer: {
-                        name: '',
-                        phone: ''
-                    },
+                        cart: [],
+                        discount: 0,
+                        taxRate: 0,
 
-                    variantModal: false,
-                    selectedProduct: null,
-                    selectedSize: 'OS',
-                    selectedColor: 'Default',
-
-                    checkoutModal: false,
-                    payment: {
-                        method: 'Cash',
-                        tendered: 0,
-                        ref: ''
-                    },
-
-                    get visibleProducts() {
-                        let list = this.products.slice();
-
-                        // Category
-                        if (this.activeCategory !== 'All') {
-                            list = list.filter(p => p.category === this.activeCategory);
-                        }
-
-                        // Stock filter
-                        if (this.inStockOnly) {
-                            list = list.filter(p => (p.stock ?? 0) > 0);
-                        }
-
-                        // Search
-                        const q = this.query.trim().toLowerCase();
-                        if (q.length) {
-                            list = list.filter(p => {
-                                const hay =
-                                    `${p.name} ${p.sku} ${p.category} ${(p.colors||[]).join(' ')} ${(p.sizes||[]).join(' ')}`
-                                    .toLowerCase();
-                                return hay.includes(q);
-                            });
-                        }
-
-                        // Sort
-                        if (this.sortBy === 'price_asc') list.sort((a, b) => a.price - b.price);
-                        if (this.sortBy === 'price_desc') list.sort((a, b) => b.price - a.price);
-                        if (this.sortBy === 'name_asc') list.sort((a, b) => a.name.localeCompare(b.name));
-
-                        return list;
-                    },
-
-                    filteredCount(cat) {
-                        let list = this.products;
-                        if (cat !== 'All') list = list.filter(p => p.category === cat);
-                        if (this.inStockOnly) list = list.filter(p => (p.stock ?? 0) > 0);
-                        const q = this.query.trim().toLowerCase();
-                        if (q.length) {
-                            list = list.filter(p => (`${p.name} ${p.sku} ${p.category}`.toLowerCase()).includes(q));
-                        }
-                        return list.length;
-                    },
-
-                    money(v) {
-                        const n = Number(v || 0);
-                        return new Intl.NumberFormat('en-PH', {
-                            style: 'currency',
-                            currency: 'PHP'
-                        }).format(n);
-                    },
-
-                    get cartCount() {
-                        return this.cart.reduce((sum, i) => sum + i.qty, 0);
-                    },
-                    currentVariant() {
-                        const p = this.selectedProduct;
-                        if (!p?.variants) return null;
-                        return p.variants.find(v => v.size === this.selectedSize && v.color === this.selectedColor) ?? null;
-                    },
-                    variantStock() {
-                        return Number(this.currentVariant()?.stock || 0);
-                    },
-
-                    openVariant(p) {
-                        if (Number(p.stock || 0) <= 0) return;
-
-                        this.selectedProduct = p;
-
-                        const first = (p.variants || []).find(v => Number(v.stock || 0) > 0) || (p.variants || [])[0];
-                        this.selectedSize = first?.size || 'OS';
-                        this.selectedColor = first?.color || 'Default';
-
-                        this.variantModal = true;
-                    },
-
-                    confirmAdd() {
-                        const p = this.selectedProduct;
-                        const v = this.currentVariant();
-                        if (!p || !v || this.variantStock() <= 0) return;
-
-                        const key = `${p.id}::${v.sku}`; // unique per variant
-                        const existing = this.cart.find(i => i.key === key);
-
-                        if (existing) existing.qty += 1;
-                        else {
-                            this.cart.unshift({
-                                key,
-                                id: p.id,
-                                name: p.name,
-                                sku: v.sku, // IMPORTANT: real SKU is variant SKU
-                                image: p.image,
-                                price: p.price,
-                                size: v.size,
-                                color: v.color,
-                                qty: 1,
-                                note: '',
-                            });
-                        }
-
-                        this.variantModal = false;
-                    },
-
-
-                    inc(key) {
-                        const it = this.cart.find(i => i.key === key);
-                        if (it) it.qty += 1;
-                    },
-                    dec(key) {
-                        const it = this.cart.find(i => i.key === key);
-                        if (!it) return;
-                        it.qty = Math.max(1, it.qty - 1);
-                    },
-                    removeItem(key) {
-                        this.cart = this.cart.filter(i => i.key !== key);
-                    },
-                    clearCart() {
-                        this.cart = [];
-                        this.discount = 0;
-                        this.taxRate = 0;
-                    },
-
-                    subtotal() {
-                        return this.cart.reduce((sum, i) => sum + (i.qty * i.price), 0);
-                    },
-                    discountApplied() {
-                        return Math.min(Math.max(Number(this.discount || 0), 0), this.subtotal());
-                    },
-                    taxAmount() {
-                        const rate = Math.max(Number(this.taxRate || 0), 0) / 100;
-                        const base = Math.max(this.subtotal() - this.discountApplied(), 0);
-                        return base * rate;
-                    },
-                    total() {
-                        return Math.max(this.subtotal() - this.discountApplied(), 0) + this.taxAmount();
-                    },
-
-                    openCheckout() {
-                        this.payment.tendered = this.total();
-                        this.checkoutModal = true;
-                    },
-                    change() {
-                        return Number(this.payment.tendered || 0) - this.total();
-                    },
-
-                    newSale() {
-                        this.clearCart();
-                        this.customer = {
+                        customer: {
                             name: '',
                             phone: ''
-                        };
-                        this.query = '';
-                        this.activeCategory = 'All';
-                    },
+                        },
 
-                    holdSale() {
-                        // UI-only stub: in real app, persist cart to DB (held tickets)
-                        alert('Sale held (demo). Hook this to your backend to save a held ticket.');
-                    },
+                        variantModal: false,
+                        selectedProduct: null,
+                        selectedSize: 'OS',
+                        selectedColor: 'Default',
 
-                    completeSale() {
-                        // UI-only stub: send payload to backend and print receipt
-                        const payload = {
-                            customer: this.customer,
-                            items: this.cart,
-                            discount: this.discountApplied(),
-                            taxRate: this.taxRate,
-                            totals: {
-                                subtotal: this.subtotal(),
-                                tax: this.taxAmount(),
-                                total: this.total(),
-                            },
-                            payment: this.payment,
-                        };
+                        checkoutModal: false,
+                        payment: {
+                            method: 'Cash',
+                            tendered: 0,
+                            ref: ''
+                        },
 
-                        console.log('Complete sale payload:', payload);
-                        alert('Sale completed (demo). Check console for payload.');
+                        // ---- catalog list ----
+                        get visibleProducts() {
+                            let list = this.products.slice();
 
-                        this.checkoutModal = false;
-                        this.newSale();
-                    },
+                            if (this.activeCategory !== 'All') {
+                                list = list.filter(p => p.category === this.activeCategory);
+                            }
+
+                            // IMPORTANT: robust numeric stock check
+                            if (this.inStockOnly) {
+                                list = list.filter(p => Number(p.stock || 0) > 0);
+                            }
+
+                            const q = this.query.trim().toLowerCase();
+                            if (q.length) {
+                                list = list.filter(p => {
+                                    const variantSkus = (p.variants || []).map(v => v.sku).join(' ');
+                                    const hay =
+                                        `${p.name} ${p.sku} ${variantSkus} ${p.category} ${(p.colors||[]).join(' ')} ${(p.sizes||[]).join(' ')}`
+                                        .toLowerCase();
+                                    return hay.includes(q);
+                                });
+                            }
+
+                            if (this.sortBy === 'price_asc') list.sort((a, b) => a.price - b.price);
+                            if (this.sortBy === 'price_desc') list.sort((a, b) => b.price - a.price);
+                            if (this.sortBy === 'name_asc') list.sort((a, b) => a.name.localeCompare(b.name));
+
+                            return list;
+                        },
+
+                        filteredCount(cat) {
+                            let list = this.products;
+
+                            if (cat !== 'All') list = list.filter(p => p.category === cat);
+                            if (this.inStockOnly) list = list.filter(p => Number(p.stock || 0) > 0);
+
+                            const q = this.query.trim().toLowerCase();
+                            if (q.length) {
+                                list = list.filter(p => (`${p.name} ${p.sku} ${p.category}`.toLowerCase()).includes(q));
+                            }
+                            return list.length;
+                        },
+
+                        money(v) {
+                            const n = Number(v || 0);
+                            return new Intl.NumberFormat('en-PH', {
+                                style: 'currency',
+                                currency: 'PHP'
+                            }).format(n);
+                        },
+
+                        get cartCount() {
+                            return this.cart.reduce((sum, i) => sum + i.qty, 0);
+                        },
+
+                        // ---- variant helpers ----
+                        currentVariant() {
+                            const p = this.selectedProduct;
+                            if (!p?.variants) return null;
+                            return p.variants.find(v => v.size === this.selectedSize && v.color === this.selectedColor) ?? null;
+                        },
+
+                        variantStock() {
+                            return Number(this.currentVariant()?.stock || 0);
+                        },
+
+                        sizeHasStock(size) {
+                            const p = this.selectedProduct;
+                            if (!p?.variants) return false;
+
+                            // If a color is selected, check that exact pair; otherwise any color with stock
+                            if (this.selectedColor && this.selectedColor !== 'Default') {
+                                const v = p.variants.find(v => v.size === size && v.color === this.selectedColor);
+                                return Number(v?.stock || 0) > 0;
+                            }
+
+                            return p.variants.some(v => v.size === size && Number(v.stock || 0) > 0);
+                        },
+
+                        colorHasStock(color) {
+                            const p = this.selectedProduct;
+                            if (!p?.variants) return false;
+
+                            // If a size is selected, check that exact pair; otherwise any size with stock
+                            if (this.selectedSize && this.selectedSize !== 'OS') {
+                                const v = p.variants.find(v => v.color === color && v.size === this.selectedSize);
+                                return Number(v?.stock || 0) > 0;
+                            }
+
+                            return p.variants.some(v => v.color === color && Number(v.stock || 0) > 0);
+                        },
+
+                        pickSize(size) {
+                            this.selectedSize = size;
+
+                            // If the exact combo is out of stock, snap to first in-stock variant of this size
+                            if (this.variantStock() <= 0) {
+                                const p = this.selectedProduct;
+                                const match = (p?.variants || []).find(v => v.size === size && Number(v.stock || 0) > 0);
+                                if (match) this.selectedColor = match.color;
+                            }
+                        },
+
+                        pickColor(color) {
+                            this.selectedColor = color;
+
+                            // If the exact combo is out of stock, snap to first in-stock variant of this color
+                            if (this.variantStock() <= 0) {
+                                const p = this.selectedProduct;
+                                const match = (p?.variants || []).find(v => v.color === color && Number(v.stock || 0) > 0);
+                                if (match) this.selectedSize = match.size;
+                            }
+                        },
+
+                        // ---- actions ----
+                        openVariant(p) {
+                            // allow opening even if out of stock (so you can view variants), but keep add disabled
+                            this.selectedProduct = p;
+
+                            const first = (p.variants || []).find(v => Number(v.stock || 0) > 0) || (p.variants || [])[0];
+                            this.selectedSize = first?.size || 'OS';
+                            this.selectedColor = first?.color || 'Default';
+
+                            this.variantModal = true;
+                        },
+
+                        confirmAdd() {
+                            const p = this.selectedProduct;
+                            const v = this.currentVariant();
+                            if (!p || !v || this.variantStock() <= 0) return;
+
+                            const key = `${p.id}::${v.sku}`;
+                            const existing = this.cart.find(i => i.key === key);
+
+                            if (existing) existing.qty += 1;
+                            else {
+                                this.cart.unshift({
+                                    key,
+                                    id: p.id,
+                                    name: p.name,
+                                    sku: v.sku,
+                                    image: p.image,
+                                    price: p.price,
+                                    size: v.size,
+                                    color: v.color,
+                                    qty: 1,
+                                    note: '',
+                                });
+                            }
+
+                            this.variantModal = false;
+                        },
+
+                        inc(key) {
+                            const it = this.cart.find(i => i.key === key);
+                            if (it) it.qty += 1;
+                        },
+                        dec(key) {
+                            const it = this.cart.find(i => i.key === key);
+                            if (it) it.qty = Math.max(1, it.qty - 1);
+                        },
+                        removeItem(key) {
+                            this.cart = this.cart.filter(i => i.key !== key);
+                        },
+
+                        clearCart() {
+                            this.cart = [];
+                            this.discount = 0;
+                            this.taxRate = 0;
+                        },
+
+                        subtotal() {
+                            return this.cart.reduce((sum, i) => sum + (i.qty * i.price), 0);
+                        },
+                        discountApplied() {
+                            return Math.min(Math.max(Number(this.discount || 0), 0), this.subtotal());
+                        },
+                        taxAmount() {
+                            const rate = Math.max(Number(this.taxRate || 0), 0) / 100;
+                            const base = Math.max(this.subtotal() - this.discountApplied(), 0);
+                            return base * rate;
+                        },
+                        total() {
+                            return Math.max(this.subtotal() - this.discountApplied(), 0) + this.taxAmount();
+                        },
+
+                        openCheckout() {
+                            this.payment.tendered = this.total();
+                            this.checkoutModal = true;
+                        },
+                        change() {
+                            return Number(this.payment.tendered || 0) - this.total();
+                        },
+
+                        newSale() {
+                            this.clearCart();
+                            this.customer = {
+                                name: '',
+                                phone: ''
+                            };
+                            this.query = '';
+                            this.activeCategory = 'All';
+                        },
+
+                        holdSale() {
+                            alert('Sale held (demo). Hook this to your backend to save a held ticket.');
+                        },
+
+                        completeSale() {
+                            const payload = {
+                                customer: this.customer,
+                                items: this.cart,
+                                discount: this.discountApplied(),
+                                taxRate: this.taxRate,
+                                totals: {
+                                    subtotal: this.subtotal(),
+                                    tax: this.taxAmount(),
+                                    total: this.total()
+                                },
+                                payment: this.payment,
+                            };
+
+                            console.log('Complete sale payload:', payload);
+                            alert('Sale completed (demo). Check console for payload.');
+
+                            this.checkoutModal = false;
+                            this.newSale();
+                        },
+                    }
                 }
-            }
-        </script>
+            </script>
+        @endonce
+
     </div>
 @endsection
