@@ -1,71 +1,30 @@
 <?php
 
-namespace App\Models;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-
-class Cashier extends Model
+return new class extends Migration
 {
-    use HasFactory;
-
     /**
-     * The table associated with the model.
-     *
-     * @var string
+     * Run the migrations.
      */
-    protected $table = 'cashiers';
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'name',
-        'role',
-        'status',
-    ];
-
-    /**
-     * Relationship: Cashier has many Sales.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function sales()
+    public function up(): void
     {
-        return $this->hasMany(Sale::class);
+        Schema::create('cashiers', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->enum('role', ['cashier', 'manager'])->default('cashier');
+            $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->timestamps();
+        });
     }
 
     /**
-     * Scope a query to only include active cashiers.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
+     * Reverse the migrations.
      */
-    public function scopeActive($query)
+    public function down(): void
     {
-        return $query->where('status', 'active');
+        Schema::dropIfExists('cashiers');
     }
-
-    /**
-     * Scope a query to only include managers.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeManagers($query)
-    {
-        return $query->where('role', 'manager');
-    }
-
-    /**
-     * Accessor to get a formatted display name.
-     *
-     * @return string
-     */
-    public function getDisplayNameAttribute(): string
-    {
-        return ucfirst($this->name) . " ({$this->role})";
-    }
-}
+};

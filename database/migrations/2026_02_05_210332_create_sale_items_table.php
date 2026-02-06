@@ -21,7 +21,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table-> unique(['sale_id', 'variant_id']);
+            $table-> index(['sale_id', 'variant_id']);
         });
     }
 
@@ -33,3 +33,10 @@ return new class extends Migration
         Schema::dropIfExists('saleitems');
     }
 };
+
+
+
+
+
+
+

@@ -12,6 +12,6 @@ class CashierSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+       \App\Models\Cashier::factory()->count(5)->create();   
     }
 }

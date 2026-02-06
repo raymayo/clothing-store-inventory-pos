@@ -16,8 +16,12 @@ class CategoryFactory extends Factory
      */
     public function definition(): array
     {
+      static $names = ['Shirts', 'Pants', 'Accessories', 'Caps', 'Shoes'];
+
         return [
-            //
+            'name'        => array_shift($names),
+            'description' => $this->faker->sentence(),
+            'is_active'   => true,
         ];
     }
 }

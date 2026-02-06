@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
@@ -41,19 +43,22 @@ class Product extends Model
 
     /**
      * Relationship: Product belongs to a Category.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function category()
+    public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
     /**
+     * Relationship: Product has many Variants.
+     */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(Variant::class);
+    }
+
+    /**
      * Scope a query to only include active products.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeActive($query)
     {
@@ -62,11 +67,22 @@ class Product extends Model
 
     /**
      * Accessor to get a formatted product name.
-     *
-     * @return string
      */
     public function getFormattedNameAttribute(): string
     {
         return ucfirst($this->name);
+    }
+
+    /**
+     * Accessor: Total stock across all variants.
+     * Usage: $product->total_stock
+     */
+    public function getTotalStockAttribute(): int
+    {
+        if ($this->relationLoaded('variants')) {
+            return (int) $this->variants->sum('current_stock');
+        }
+
+        return (int) $this->variants()->sum('current_stock');
     }
 }

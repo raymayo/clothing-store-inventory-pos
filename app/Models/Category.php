@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Category extends Model
 {
@@ -37,6 +38,14 @@ class Category extends Model
     ];
 
     /**
+     * Relationship: Category has many Products.
+     */
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    /**
      * Scope a query to only include active categories.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -49,8 +58,6 @@ class Category extends Model
 
     /**
      * Accessor to get a formatted name.
-     *
-     * @return string
      */
     public function getFormattedNameAttribute(): string
     {

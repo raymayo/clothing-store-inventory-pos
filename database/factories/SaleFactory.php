@@ -17,7 +17,10 @@ class SaleFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'sale_date' => now(),
+            'total_amount' => $this->faker->randomFloat(2, 1, 1000),
+            'cashier_id' => \App\Models\Cashier::inRandomOrder()->value('id'),
+            'status' => $this->faker->randomElement(['completed', 'refunded']),
         ];
     }
 }

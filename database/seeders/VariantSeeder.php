@@ -12,6 +12,6 @@ class VariantSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+       \App\Models\Variant::factory()->count(30)->create();
     }
 }
