@@ -1,25 +1,34 @@
-<h1>Products Test</h1>
+<!-- resources/views/products/index.blade.php -->
+@extends('layouts.app')
 
-@if ($products->count())
-    <ul>
-        @foreach ($products as $product)
-            <li>
-                <strong>{{ $product->name }}</strong>
-                <div>Category: {{ $product->category?->name ?? 'Uncategorized' }}</div>
+@section('content')
+    <div class="p-6">
+        <h1 class="text-3xl font-bold mb-4">Products Test</h1>
 
-                @if ($product->variants->count())
-                    <div>Variants:</div>
-                    <ul>
-                        @foreach ($product->variants as $variant)
-                            <li>{{ $variant->color }}</li>
-                        @endforeach
-                    </ul>
-                @endif
-            </li>
-        @endforeach
-    </ul>
+        @if ($products->count())
+            <ul class="list-none space-y-4">
+                @foreach ($products as $product)
+                    <li class="p-4 bg-white rounded shadow">
+                        <strong class="text-red-500">{{ $product->name }}</strong>
+                        <div class="text-gray-600">Category: {{ $product->category?->name ?? 'Uncategorized' }}</div>
 
-    {{ $products->links() }}
-@else
-    <p>No active products found.</p>
-@endif
+                        @if ($product->variants->count())
+                            <div class="mt-2 font-semibold">Variants:</div>
+                            <ul class="list-disc list-inside ml-4">
+                                @foreach ($product->variants as $variant)
+                                    <li>{{ $variant->color }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+
+            <div class="mt-4">
+                {{ $products->links() }}
+            </div>
+        @else
+            <p>No active products found.</p>
+        @endif
+    </div>
+@endsection
