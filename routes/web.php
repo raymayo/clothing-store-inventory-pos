@@ -24,6 +24,11 @@ Route::get('/dashboard', function () {
 Route::get('/admin', [AdminController::class, 'index'])
     ->middleware(['auth', 'admin']);
 
+Route::get('/create-admin', [AdminController::class, 'create'])
+    ->name('admin.create');
+Route::post('/create-admin', [AdminController::class, 'store'])
+    ->name('admin.store');
+
 Route::get('/login', [AuthController::class, 'showLogin'])
     ->middleware('guest')
     ->name('login');
